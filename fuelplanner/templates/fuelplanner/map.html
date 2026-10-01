@@ -34,6 +34,7 @@
   <div class="error"><h2>Could not plan this trip</h2><p>{{ error }}</p></div>
 {% else %}
   {{ plan|json_script:"plan-data" }}
+  {{ tile_providers|json_script:"tile-providers" }}
   <div id="app">
     <aside id="panel">
       <h1>{{ plan.start.label }} &rarr; {{ plan.finish.label }}</h1>
@@ -62,12 +63,26 @@
   <script>
     const plan = JSON.parse(document.getElementById("plan-data").textContent);
     const map = L.map("map");
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 18, attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(map);
+    // Basemap providers that need no API key, tried in order. If a provider's tiles keep
+    // failing (blocked, rate-limited, offline), switch to the next one automatically.
+    const tiles = JSON.parse(document.getElementById("tile-providers").textContent);
+    let providerIdx = 0, layer = null, loaded = 0, failed = 0;
+    function useProvider(i) {
+      if (layer) map.removeLayer(layer);
+      providerIdx = i; loaded = 0; failed = 0;
+      const t = tiles[i];
+      layer = L.tileLayer(t.url, { maxZoom: t.max_zoom || 18, attribution: t.attribution });
+      layer.on("tileload", () => loaded++);
+      layer.on("tileerror", () => {
+        failed++;
+        if (failed >= 4 && loaded === 0 && providerIdx + 1 < tiles.length) useProvider(providerIdx + 1);
+      });
+      layer.addTo(map);
+    }
 
     const line = L.geoJSON(plan.route.geometry, { style: { color: "#1f6feb", weight: 5, opacity: .8 } }).addTo(map);
     map.fitBounds(line.getBounds(), { padding: [30, 30] });
+    useProvider(0);
 
     const endIcon = (c) => L.divIcon({ className: "", html: `<div class="pin" style="background:${c}">●</div>`, iconSize: [26, 26] });
     L.marker([plan.start.lat, plan.start.lon], { icon: endIcon("#2f9e44"), zIndexOffset: 1000 }).addTo(map).bindPopup(`<b>Start</b><br>${plan.start.label}`);

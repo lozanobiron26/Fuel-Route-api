@@ -2,6 +2,7 @@ import json
 import logging
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.shortcuts import render
 from django.urls import reverse
 from rest_framework import status
@@ -84,7 +85,11 @@ def route_map_view(request):
         return render(
             request, "fuelplanner/map.html", {"error": error["error"]}, status=http_status
         )
-    return render(request, "fuelplanner/map.html", {"plan": plan})
+    return render(
+        request,
+        "fuelplanner/map.html",
+        {"plan": plan, "tile_providers": settings.FUEL_PLANNER["MAP_TILE_PROVIDERS"]},
+    )
 
 
 class HealthView(APIView):

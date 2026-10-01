@@ -76,6 +76,9 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+# Send the page origin as Referer to map tile servers (Django's default "same-origin" omits it).
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -101,6 +104,36 @@ FUEL_PLANNER = {
     # Planning-only cost (never billed) for each extra stop, so the optimiser doesn't add a
     # stop to save a few cents. Set to 0 for the strictly cheapest plan.
     "STOP_PENALTY_USD": float(os.environ.get("STOP_PENALTY_USD", "5")),
+    # Map background tiles (no API key needed), tried in order with automatic fallback.
+    # Set MAP_TILE_URL to put your own provider first.
+    "MAP_TILE_PROVIDERS": [
+        *(
+            [
+                {
+                    "url": os.environ["MAP_TILE_URL"],
+                    "attribution": os.environ.get("MAP_TILE_ATTRIBUTION", ""),
+                }
+            ]
+            if os.environ.get("MAP_TILE_URL")
+            else []
+        ),
+        {
+            "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/"
+            "MapServer/tile/{z}/{y}/{x}",
+            "attribution": "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, USGS, NGA, EPA, NPS",
+            "max_zoom": 19,
+        },
+        {
+            "url": "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+            "attribution": "&copy; OpenStreetMap contributors, SRTM | &copy; OpenTopoMap",
+            "max_zoom": 17,
+        },
+        {
+            "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            "attribution": "&copy; OpenStreetMap contributors",
+            "max_zoom": 19,
+        },
+    ],
     "FUEL_CSV_PATH": BASE_DIR / "data" / "fuel-prices-for-be-assessment.csv",
 }
 
